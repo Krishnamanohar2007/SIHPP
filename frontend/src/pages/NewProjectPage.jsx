@@ -1,0 +1,22 @@
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { api } from "../api/client";
+import RiskBadge from "../components/RiskBadge";
+import ExplanationPanel from "../components/ExplanationPanel";
+
+const fields = [
+  ["project_id", "Project ID", "text"], ["project_name", "Project name", "text"], ["project_type", "Project type", "text"], ["state", "State", "text"], ["district", "District", "text"],
+  ["land_area", "Land area (hectares)", "number"], ["number_of_owners", "Number of owners", "number"], ["compensation_status", "Compensation status", "text"], ["compensation_percentage", "Compensation (%)", "number"], ["legal_disputes", "Legal disputes", "number"],
+  ["land_possession_status", "Land possession status", "text"], ["land_possession_percentage", "Land possession (%)", "number"], ["rehabilitation_status", "Rehabilitation status", "text"], ["rehabilitation_percentage", "Rehabilitation (%)", "number"], ["latitude", "Latitude", "number"], ["longitude", "Longitude", "number"],
+];
+const numeric = new Set(fields.filter(([, , type]) => type === "number").map(([name]) => name));
+
+export default function NewProjectPage() {
+  const navigate = useNavigate(); const [form, setForm] = useState({}); const [preview, setPreview] = useState(null);
+  const previewMutation = useMutation({ mutationFn: api.predictPreview, onSuccess: setPreview });
+  const saveMutation = useMutation({ mutationFn: api.createProject, onSuccess: (project) => navigate("/map", { state: { focusProject: project } }) });
+  const payload = () => Object.fromEntries(Object.entries(form).map(([key, value]) => [key, numeric.has(key) ? Number(value) : value]));
+  const submitPreview = (event) => { event.preventDefault(); setPreview(null); previewMutation.mutate(payload()); };
+  return <><header className="mb-7"><p className="text-xs font-bold uppercase tracking-[.18em] text-emerald-700">Portfolio register</p><h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">New project</h1><p className="mt-2 text-slate-500">Review model risk assessment before project enters database.</p></header><div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]"><form onSubmit={submitPreview} className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200"><div className="grid gap-4 md:grid-cols-2">{fields.map(([name,label,type]) => <label key={name} className="block text-sm font-medium text-slate-700">{label}<input required type={type} step={type === "number" ? "any" : undefined} value={form[name] || ""} onChange={(event) => setForm({ ...form, [name]: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-emerald-500" /></label>)}</div>{previewMutation.isError && <p className="mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">Preview unavailable. Check every field and API connection.</p>}<button disabled={previewMutation.isPending} className="mt-6 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{previewMutation.isPending ? "Calculating…" : "Preview risk assessment"}</button></form><section className="space-y-4">{preview ? <><div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Predicted assessment</p><div className="mt-3 flex items-center justify-between"><RiskBadge category={preview.risk_category}/><span className="text-sm font-semibold text-slate-700">{Math.round(preview.delay_probability * 100)}% delay probability</span></div><p className="mt-3 text-2xl font-bold text-slate-900">Risk score {preview.risk_score}</p></div><ExplanationPanel open preview={preview}/><button disabled={saveMutation.isPending} onClick={() => saveMutation.mutate({ ...payload(), risk_score: preview.risk_score, delay_probability: preview.delay_probability, risk_category: preview.risk_category })} className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-60">{saveMutation.isPending ? "Saving…" : "Confirm & Add Project"}</button>{saveMutation.isError && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">Save failed. Project ID may already exist.</p>}</> : <div className="rounded-xl border border-dashed border-slate-300 p-7 text-sm text-slate-500">Enter project details to generate prediction.</div>}</section></div></>;
+}

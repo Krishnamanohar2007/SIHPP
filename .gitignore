@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+work/
+.env
+
+# Node / Vite
+frontend/node_modules/
+frontend/dist/
+
+# ML artifacts and notebooks
+ml/.ipynb_checkpoints/
+ml/models/*.joblib
+ml/models/*.pkl
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

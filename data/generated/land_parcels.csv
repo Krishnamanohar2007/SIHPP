@@ -1,0 +1,6 @@
+parcel_id,district,area_hectares,ownership_dispute,flood_exposure,encroachment_signal,risk_score
+LP-0001,Narmada,8.42,0,16,31,15
+LP-0002,Sundargarh,13.76,1,62,54,78
+LP-0003,Dhar,3.15,0,80,42,40
+LP-0004,Kalahandi,21.09,0,15,8,7
+LP-0005,Narmada,6.73,1,35,70,74

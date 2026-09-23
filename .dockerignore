@@ -1,0 +1,11 @@
+.git
+.env
+**/.env
+**/node_modules
+**/dist
+**/__pycache__
+**/*.py[cod]
+venv
+work
+outputs
+*.log

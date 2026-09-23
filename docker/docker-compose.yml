@@ -1,0 +1,61 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-risk_monitor}
+      POSTGRES_USER: ${POSTGRES_USER:-risk_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-risk_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    environment:
+      APP_NAME: ${APP_NAME:-Land Acquisition Risk Monitor API}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-risk_user}:${POSTGRES_PASSWORD:-risk_password}@db:5432/${POSTGRES_DB:-risk_monitor}
+      NOTIFICATION_CHANNELS: ${NOTIFICATION_CHANNELS:-console}
+      NOTIFICATION_RISK_THRESHOLD: ${NOTIFICATION_RISK_THRESHOLD:-60}
+      NOTIFICATION_RECIPIENT: ${NOTIFICATION_RECIPIENT:-risk-operations@example.invalid}
+      NOTIFICATION_SCAN_INTERVAL_MINUTES: ${NOTIFICATION_SCAN_INTERVAL_MINUTES:-15}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      SEED_SAMPLE_DATA: ${SEED_SAMPLE_DATA:-true}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+volumes:
+  postgres_data:

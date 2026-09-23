@@ -1,0 +1,3 @@
+const classes = { High: "bg-red-100 text-red-700 ring-red-200", Medium: "bg-amber-100 text-amber-700 ring-amber-200", Low: "bg-emerald-100 text-emerald-700 ring-emerald-200" };
+const dots = { High: "bg-red-500", Medium: "bg-amber-500", Low: "bg-emerald-500" };
+export default function RiskBadge({ category }) { return <span className={`inline-flex shrink-0 self-start items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold leading-none ring-1 ${classes[category] || "bg-slate-100 text-slate-600 ring-slate-200"}`}><span className={`h-1.5 w-1.5 rounded-full ${dots[category] || "bg-slate-400"}`} />{category || "Unknown"}</span>; }
