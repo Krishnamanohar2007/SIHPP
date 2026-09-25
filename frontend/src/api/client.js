@@ -5,6 +5,8 @@ const client = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL || "htt
 export const api = {
   summary: () => client.get("/stats/summary").then((r) => r.data),
   projects: (params) => client.get("/projects", { params }).then((r) => r.data),
+  filterOptions: (params) => client.get("/projects/filter-options", { params }).then((r) => r.data),
+  reverseLocation: (params) => client.get("/locations/reverse", { params }).then((r) => r.data),
   geo: () => client.get("/projects/geo").then((r) => r.data),
   alerts: () => client.get("/alerts").then((r) => r.data),
   explain: (id) => client.get(`/projects/${id}/explain`).then((r) => r.data),

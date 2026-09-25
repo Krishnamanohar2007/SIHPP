@@ -21,6 +21,9 @@ notification_scheduler = BackgroundScheduler(timezone="UTC")
 @app.on_event("startup")
 def start_notification_scheduler() -> None:
     dispatcher = NotificationDispatcher()
+    # Seed the alert feed for a new database instead of waiting for the first
+    # scheduled scan. Existing open alerts are deduplicated by the dispatcher.
+    dispatcher.scan_projects()
     notification_scheduler.add_job(dispatcher.scan_projects, "interval", minutes=settings.notification_scan_interval_minutes, id="risk-notification-scan", replace_existing=True, max_instances=1, coalesce=True)
     if not notification_scheduler.running:
         notification_scheduler.start()

@@ -12,6 +12,7 @@ from app.database import get_db
 from app.models import Alert, NotificationLog, Project
 from app.schemas import AlertRead, BulkUploadResult, ProjectCreate, ProjectPage, ProjectPreview, ProjectPreviewCreate, ProjectRead, SummaryStats
 from app.services.ml_service import ModelUnavailableError, get_ml_service
+from app.services.india_locations import india_state_districts, reverse_geocode
 from app.services.notifications.dispatcher import NotificationDispatcher
 from app.services.project_csv import sync_projects_to_csv
 
@@ -20,9 +21,9 @@ router = APIRouter(tags=["projects"])
 PROJECT_COLUMNS = set(ProjectCreate.model_fields)
 
 
-def filtered_projects(state: str | None, district: str | None, risk_category: str | None, project_type: str | None):
+def filtered_projects(country: str | None, state: str | None, district: str | None, land_type: str | None, risk_category: str | None, project_type: str | None):
     statement = select(Project)
-    for column, value in ((Project.state, state), (Project.district, district), (Project.risk_category, risk_category), (Project.project_type, project_type)):
+    for column, value in ((Project.country, country), (Project.state, state), (Project.district, district), (Project.land_type, land_type), (Project.risk_category, risk_category), (Project.project_type, project_type)):
         if value:
             statement = statement.where(column == value)
     return statement
@@ -30,15 +31,17 @@ def filtered_projects(state: str | None, district: str | None, risk_category: st
 
 @router.get("/projects", response_model=ProjectPage)
 def list_projects(
+    country: str | None = None,
     state: str | None = None,
     district: str | None = None,
+    land_type: str | None = None,
     risk_category: str | None = None,
     project_type: str | None = None,
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
-    statement = filtered_projects(state, district, risk_category, project_type)
+    statement = filtered_projects(country, state, district, land_type, risk_category, project_type)
     try:
         total = db.scalar(select(func.count()).select_from(statement.subquery())) or 0
         items = db.scalars(statement.order_by(Project.project_id).offset(offset).limit(limit)).all()
@@ -55,6 +58,47 @@ def projects_geo(db: Session = Depends(get_db)):
         raise HTTPException(500, "Could not build map data") from error
     features = [{"type": "Feature", "id": project.project_id, "geometry": json.loads(geometry), "properties": ProjectRead.model_validate(project).model_dump(mode="json")} for project, geometry in rows]
     return {"type": "FeatureCollection", "features": features}
+
+
+@router.get("/projects/filter-options")
+def project_filter_options(
+    country: str | None = None,
+    state: str | None = None,
+    district: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """Return dependent geographic filter values for country, state, and district."""
+    try:
+        reference = india_state_districts() if not country or country == "India" else {}
+        countries = sorted(set(db.scalars(select(Project.country).distinct()).all()) | {"India"})
+        state_query = select(Project.state).distinct()
+        if country:
+            state_query = state_query.where(Project.country == country)
+        database_states = db.scalars(state_query.order_by(Project.state)).all()
+        states = sorted(set(database_states) | set(reference))
+        district_query = select(Project.district).distinct()
+        if country:
+            district_query = district_query.where(Project.country == country)
+        if state:
+            district_query = district_query.where(Project.state == state)
+        database_districts = db.scalars(district_query.order_by(Project.district)).all()
+        districts = sorted(set(database_districts) | set(reference.get(state, [])))
+        land_types = db.scalars(select(Project.land_type).distinct().order_by(Project.land_type)).all()
+        project_types = db.scalars(select(Project.project_type).distinct().order_by(Project.project_type)).all()
+        return {"countries": countries, "states": states, "districts": districts, "land_types": land_types, "project_types": project_types, "risk_categories": ["Low", "Medium", "High"], "reference_loaded": bool(reference)}
+    except SQLAlchemyError as error:
+        raise HTTPException(500, "Could not load filter options") from error
+
+
+@router.get("/locations/reverse")
+def location_from_coordinates(
+    latitude: float = Query(..., ge=-90, le=90),
+    longitude: float = Query(..., ge=-180, le=180),
+):
+    try:
+        return reverse_geocode(latitude, longitude)
+    except ValueError as error:
+        raise HTTPException(503, str(error)) from error
 
 
 @router.post("/projects", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)

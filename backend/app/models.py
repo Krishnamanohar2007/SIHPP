@@ -25,6 +25,7 @@ class Project(Base):
         CheckConstraint("risk_category IN ('Low', 'Medium', 'High')", name="ck_projects_risk_category"),
         Index("ix_projects_state", "state"),
         Index("ix_projects_district", "district"),
+        Index("ix_projects_country", "country"),
         Index("ix_projects_risk_category", "risk_category"),
         Index("ix_projects_project_type", "project_type"),
         Index("ix_projects_geom", "geom", postgresql_using="gist"),
@@ -33,9 +34,12 @@ class Project(Base):
     project_id: Mapped[str] = mapped_column(String(20), primary_key=True)
     project_name: Mapped[str] = mapped_column(String(255), nullable=False)
     project_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    country: Mapped[str] = mapped_column(String(80), nullable=False, server_default="India")
     state: Mapped[str] = mapped_column(String(80), nullable=False)
     district: Mapped[str] = mapped_column(String(100), nullable=False)
     land_area: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    land_type: Mapped[str] = mapped_column(String(50), nullable=False, server_default="Agricultural")
+    land_price_per_acre: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, server_default="2500000")
     number_of_owners: Mapped[int] = mapped_column(Integer, nullable=False)
     compensation_status: Mapped[str] = mapped_column(String(30), nullable=False)
     compensation_percentage: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
