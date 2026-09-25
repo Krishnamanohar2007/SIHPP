@@ -77,7 +77,9 @@ def generate_projects(count: int = PROJECT_COUNT, seed: int = RANDOM_SEED) -> pd
         land_type = str(rng.choice(LAND_TYPES, p=[0.52, 0.16, 0.14, 0.08, 0.10]))
         severity = float(rng.beta(2.3, 3.0))
         area = round(float(rng.lognormal(5.2, 0.75)), 2)
-        land_price = round(float(rng.lognormal(14.4, 0.55) * {"Agricultural": 1.0, "Residential": 1.8, "Industrial": 1.5, "Commercial": 2.2, "Barren": 0.6}[land_type]), 2)
+        state_factor = {"Maharashtra": 1.65, "Uttar Pradesh": 1.05, "Rajasthan": 0.85, "Gujarat": 1.25, "Karnataka": 1.45, "Tamil Nadu": 1.35, "Madhya Pradesh": 0.80, "Odisha": 0.75, "Bihar": 0.70, "Telangana": 1.30}[state]
+        base_price = {"Agricultural": 1_500_000, "Residential": 5_000_000, "Industrial": 3_500_000, "Commercial": 7_000_000, "Barren": 800_000}[land_type]
+        land_price = round(float(base_price * state_factor * rng.uniform(0.80, 1.20)), 2)
         owners = max(3, int(rng.poisson(max(6, area * 1.7))))
         compensation = float(np.clip(98 - severity * 78 + rng.normal(0, 10), 0, 100))
         possession = float(np.clip(97 - severity * 70 - (100 - compensation) * 0.12 + rng.normal(0, 9), 0, 100))

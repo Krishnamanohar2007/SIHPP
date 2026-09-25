@@ -11,7 +11,7 @@ const numeric = new Set(["land_area", "land_price_per_acre", "number_of_owners",
 const message = (error) => { const detail = error?.response?.data?.detail; return Array.isArray(detail) ? detail.map((item) => item.msg).join(". ") : detail || error?.message || "Request failed."; };
 
 export default function NewProjectPage() {
-  const navigate = useNavigate(); const [form, setForm] = useState({ country: "India", land_type: "Agricultural", land_price_per_acre: "2500000" }); const [preview, setPreview] = useState(null);
+  const navigate = useNavigate(); const [form, setForm] = useState({ country: "India", land_type: "Agricultural" }); const [preview, setPreview] = useState(null);
   const options = useQuery({ queryKey:["new-project-options", form.country, form.state], queryFn:()=>api.filterOptions({ country:form.country, state:form.state || undefined }) });
   const previewMutation = useMutation({ mutationFn: api.predictPreview, onSuccess: setPreview });
   const locationMutation = useMutation({ mutationFn: api.reverseLocation, onSuccess: (location) => setForm((previous) => ({ ...previous, country: location.country || previous.country, state: location.state || previous.state, district: location.district || previous.district })) });
