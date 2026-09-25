@@ -106,4 +106,5 @@ class AlertRead(BaseModel):
     created_at: datetime
     channel: str
     status: str
+    deliveries: list[dict] = Field(default_factory=list)
     model_config = ConfigDict(from_attributes=True)

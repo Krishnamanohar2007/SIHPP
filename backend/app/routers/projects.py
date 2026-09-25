@@ -9,10 +9,11 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Alert, Project
+from app.models import Alert, NotificationLog, Project
 from app.schemas import AlertRead, BulkUploadResult, ProjectCreate, ProjectPage, ProjectPreview, ProjectPreviewCreate, ProjectRead, SummaryStats
 from app.services.ml_service import ModelUnavailableError, get_ml_service
 from app.services.notifications.dispatcher import NotificationDispatcher
+from app.services.project_csv import sync_projects_to_csv
 
 
 router = APIRouter(tags=["projects"])
@@ -69,6 +70,10 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
     except SQLAlchemyError as error:
         db.rollback()
         raise HTTPException(500, "Could not create project") from error
+    try:
+        sync_projects_to_csv(db)
+    except OSError as error:
+        raise HTTPException(500, "Project saved, but CSV synchronization failed") from error
     return project
 
 
@@ -110,6 +115,10 @@ async def bulk_upload_projects(file: UploadFile = File(...), db: Session = Depen
     except SQLAlchemyError as error:
         db.rollback()
         raise HTTPException(500, "Could not import CSV") from error
+    try:
+        sync_projects_to_csv(db)
+    except OSError as error:
+        raise HTTPException(500, "Projects saved, but CSV synchronization failed") from error
     return BulkUploadResult(inserted=len(payloads))
 
 
@@ -180,6 +189,12 @@ def list_alerts(status: str | None = None, limit: int = Query(100, ge=1, le=500)
     if status:
         statement = statement.where(Alert.status == status)
     try:
-        return db.scalars(statement).all()
+        alerts = db.scalars(statement).all()
+        project_ids = {alert.project_id for alert in alerts}
+        deliveries = db.scalars(select(NotificationLog).where(NotificationLog.project_id.in_(project_ids)).order_by(NotificationLog.id.desc())).all() if project_ids else []
+        by_project: dict[str, list[dict]] = {}
+        for delivery in deliveries:
+            by_project.setdefault(delivery.project_id, []).append({"channel": delivery.channel, "status": delivery.status, "sent_at": delivery.sent_at})
+        return [{"id": alert.id, "project_id": alert.project_id, "risk_score_at_trigger": alert.risk_score_at_trigger, "message": alert.message, "created_at": alert.created_at, "channel": alert.channel, "status": alert.status, "deliveries": by_project.get(alert.project_id, [])} for alert in alerts]
     except SQLAlchemyError as error:
         raise HTTPException(500, "Could not read alerts") from error

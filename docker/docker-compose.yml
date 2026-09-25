@@ -29,6 +29,9 @@ services:
       NOTIFICATION_SCAN_INTERVAL_MINUTES: ${NOTIFICATION_SCAN_INTERVAL_MINUTES:-15}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       SEED_SAMPLE_DATA: ${SEED_SAMPLE_DATA:-true}
+    volumes:
+      - ../data/projects.csv:/data/projects.csv
+      - ../ml/models:/ml/models
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:

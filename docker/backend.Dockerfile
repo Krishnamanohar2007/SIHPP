@@ -13,6 +13,7 @@ COPY backend/migrations ./migrations
 COPY backend/alembic.ini ./alembic.ini
 COPY backend/scripts ./scripts
 COPY data/projects.csv /data/projects.csv
+COPY ml/train_model.py /ml/train_model.py
 COPY ml/models /ml/models
 EXPOSE 8000
 ENTRYPOINT ["backend-entrypoint"]
