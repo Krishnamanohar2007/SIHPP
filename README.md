@@ -4,6 +4,11 @@ AI-enabled decision support for land-acquisition delay risk: it predicts which
 projects are likely to slip, explains why, ranks corrective actions, and learns
 from recorded outcomes.
 
+| Guide | For |
+| --- | --- |
+| [SETUP.md](SETUP.md) | Getting it running, configuration, troubleshooting |
+| [STATUS.md](STATUS.md) | What is built, measured quality, known limitations |
+
 ## What it does
 
 - **Predicts delay** for the whole project and for each lifecycle stage
@@ -40,11 +45,17 @@ from recorded outcomes.
 
 ## Run application with Docker
 
-1. From repository root, copy Docker environment defaults and replace the development password:
+1. From the repository root, copy the environment template:
 
    ```sh
    cp docker/.env.example docker/.env
    ```
+
+   Then edit `docker/.env` and set `JWT_SECRET` to a unique random string of at
+   least 32 characters, `POSTGRES_PASSWORD` to a local password, and
+   `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` to create the first
+   administrator. Without those last two, no account exists to sign in with.
+   The committed values are placeholders, not usable defaults.
 
 2. Start services:
 
@@ -54,7 +65,8 @@ from recorded outcomes.
 
 3. Open `http://localhost:8080` for the frontend. Swagger UI: `http://localhost:8000/docs`. Health endpoint: `http://localhost:8000/health`.
 
-The local backend applies migrations and loads sample data at startup. Disable `SEED_SAMPLE_DATA` outside development. See `docs/deployment.md` for managed-cloud deployment guidance and one-off migration steps.
+First start trains a model bundle before serving, which takes about a minute.
+The backend then applies migrations and loads 750 sample projects. Disable `SEED_SAMPLE_DATA` outside development. See `docs/deployment.md` for managed-cloud deployment guidance and one-off migration steps.
 
 The database listens on `localhost:5432`. Development defaults live in `docker/.env.example`.
 
@@ -65,7 +77,7 @@ Requires Python 3.11 and a reachable PostgreSQL instance.
 ```sh
 cd backend
 python -m venv .venv
-# Windows PowerShell: .venv\\Scripts\\Activate.ps1
+# Windows PowerShell: .venv\Scripts\Activate.ps1
 # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
@@ -120,6 +132,8 @@ a temporary directory, so retraining tests never touch `ml/models`.
 
 | Document | Contents |
 | --- | --- |
+| [SETUP.md](SETUP.md) | Setup, configuration reference, troubleshooting |
+| [STATUS.md](STATUS.md) | Requirement coverage, measured quality, limitations, next steps |
 | [docs/architecture.md](docs/architecture.md) | Components, request path, prediction flow, model bundle layout |
 | [docs/api-contracts.md](docs/api-contracts.md) | Every endpoint, permissions, payloads, error codes |
 | [docs/ml-models.md](docs/ml-models.md) | Targets, features, risk rule, metrics, continuous learning |
