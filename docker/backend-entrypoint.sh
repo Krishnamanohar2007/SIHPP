@@ -1,7 +1,9 @@
 #!/bin/sh
 set -eu
 
-if [ ! -f /ml/models/delay_model.pkl ] || [ ! -f /ml/models/delay_model_shap.pkl ]; then
+# Train a first model bundle when none is present. The API refuses to score
+# without one, so this must succeed before migrations and seeding.
+if [ ! -f /ml/models/active.json ] && [ ! -f /ml/models/model_card.json ]; then
   python /ml/train_model.py
 fi
 

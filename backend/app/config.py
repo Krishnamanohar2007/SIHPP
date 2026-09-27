@@ -13,14 +13,26 @@ class Settings(BaseSettings):
     notification_risk_threshold: float = 60
     notification_recipient: str = "risk-operations@example.invalid"
     notification_scan_interval_minutes: int = 15
+    retrain_interval_hours: int = 0  # 0 disables scheduled continuous learning
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5173", "http://localhost:8080"]
+    jwt_secret: str
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60
+    bootstrap_admin_email: str | None = None
+    bootstrap_admin_password: str | None = None
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    @field_validator("notification_channels", mode="before")
+    @field_validator("notification_channels", "cors_origins", mode="before")
     @classmethod
     def split_channels(cls, value):
         if isinstance(value, str):
-            return [channel.strip().lower() for channel in value.split(",") if channel.strip()]
+            return [item.strip() for item in value.split(",") if item.strip()]
         return value
+
+    @field_validator("notification_channels", mode="after")
+    @classmethod
+    def normalize_channels(cls, value):
+        return [channel.lower() for channel in value]
 
 
 @lru_cache

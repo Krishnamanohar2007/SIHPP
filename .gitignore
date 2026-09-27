@@ -14,6 +14,8 @@ frontend/dist/
 ml/.ipynb_checkpoints/
 ml/models/*.joblib
 ml/models/*.pkl
+ml/models/*.json
+ml/models/v*/
 
 # OS / editors
 .DS_Store

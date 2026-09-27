@@ -22,15 +22,24 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-Land Acquisition Risk Monitor API}
       ENVIRONMENT: ${ENVIRONMENT:-development}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in docker/.env}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-risk_user}:${POSTGRES_PASSWORD:-risk_password}@db:5432/${POSTGRES_DB:-risk_monitor}
       NOTIFICATION_CHANNELS: ${NOTIFICATION_CHANNELS:-console}
       NOTIFICATION_RISK_THRESHOLD: ${NOTIFICATION_RISK_THRESHOLD:-60}
       NOTIFICATION_RECIPIENT: ${NOTIFICATION_RECIPIENT:-risk-operations@example.invalid}
       NOTIFICATION_SCAN_INTERVAL_MINUTES: ${NOTIFICATION_SCAN_INTERVAL_MINUTES:-15}
+      RETRAIN_INTERVAL_HOURS: ${RETRAIN_INTERVAL_HOURS:-0}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:8080}
+      TRAINING_HISTORY_PATH: /data/training_history.csv
+      ML_PACKAGE_DIR: /ml
+      ML_MODELS_DIR: /ml/models
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       SEED_SAMPLE_DATA: ${SEED_SAMPLE_DATA:-true}
     volumes:
       - ../data/projects.csv:/data/projects.csv
+      - ../data/training_history.csv:/data/training_history.csv
       - ../ml/models:/ml/models
     ports:
       - "${BACKEND_PORT:-8000}:8000"

@@ -5,7 +5,7 @@
 The local Compose stack contains three services:
 
 - `db`: PostGIS 16 for local development only.
-- `backend`: FastAPI on port 8000. Its startup entrypoint can run Alembic migrations and load sample data.
+- `backend`: FastAPI on port 8000. Its startup entrypoint trains a first model bundle when none exists, can run Alembic migrations, and can load sample data.
 - `frontend`: the Vite production build served by Nginx on port 80. Nginx proxies `/api/` to the backend, so browser clients can use a same-origin API path.
 
 For local use, copy `docker/.env.example` to `docker/.env`, set a non-default password, then run:
@@ -27,6 +27,43 @@ DATABASE_URL=postgresql+psycopg2://USER:PASSWORD@HOST:5432/DATABASE?sslmode=requ
 ```
 
 Use the managed database hostname outside Compose; `db` is only the local container hostname. Set `ENVIRONMENT`, notification settings, and database credentials as runtime environment variables. `VITE_*` values are public build-time values and must never contain credentials.
+
+### Model and analytics settings
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `ML_MODELS_DIR` | `<repo>/ml/models` | Directory holding versioned model bundles and `active.json` |
+| `ML_MODEL_DIR` | unset | Pin one exact bundle, overriding `active.json` |
+| `ML_PACKAGE_DIR` | `<repo>/ml` | Location of the training code, needed for in-process retraining |
+| `TRAINING_HISTORY_PATH` | `<repo>/data/training_history.csv` | Seed labels merged with recorded outcomes at retraining |
+| `NOTIFICATION_SCAN_INTERVAL_MINUTES` | `15` | Risk scan cadence; each scan also records metric snapshots |
+| `NOTIFICATION_RISK_THRESHOLD` | `60` | Risk score above which an alert is raised |
+| `RETRAIN_INTERVAL_HOURS` | `0` | Scheduled continuous learning; `0` disables it |
+| `CORS_ORIGINS` | `http://localhost:5173,http://localhost:8080` | Comma-separated browser origins allowed to call the API |
+
+The model bundle must be on **shared, persistent storage** when more than one
+backend replica runs. Replicas load the bundle from disk and `POST /models/retrain`
+writes a new one, so with per-replica local disks the replicas will drift onto
+different model versions. Mount one shared volume, or bake a fixed bundle into the
+image and pin it with `ML_MODEL_DIR` while retraining on a separate job.
+
+For the same reason, run the scheduled jobs on exactly one replica. Both the risk
+scan and scheduled retraining run in-process through APScheduler, so N replicas
+means N concurrent scans. Either keep the API at one replica, or set
+`NOTIFICATION_SCAN_INTERVAL_MINUTES` high and `RETRAIN_INTERVAL_HOURS=0` on the
+web replicas and drive both from a dedicated scheduled job that calls
+`POST /alerts/scan-now` and `POST /models/retrain`.
+
+Set `CORS_ORIGINS` to the exact production frontend origin. The bundled Nginx
+config proxies `/api/` same-origin, so no cross-origin allowance is needed for that
+path.
+
+### Integration keys
+
+API keys are stored as bcrypt hashes and returned once at creation. There is no
+recovery path: to rotate, issue a new key, move the integrating system over, then
+revoke the old one. Issue one key per system and prefer state or district limited
+keys. Key issue, revocation and every sync are written to `audit_log`.
 
 The production database role needs enough rights for the Alembic release job to create the PostGIS extension, tables, and indexes. Runtime API roles should use least privilege. Enable backups, point-in-time recovery where available, TLS in transit, encryption at rest, private network access, and audit logs. Do not expose PostgreSQL to the public internet.
 
@@ -79,4 +116,8 @@ Before each release, confirm:
 - Database backup restore is tested.
 - `DATABASE_URL` points to the intended private, TLS-protected database.
 - Sample seeding is disabled outside development.
+- A model bundle is present on shared storage and `GET /health` reports its `model_version`.
+- `scikit-learn` matches the version that produced the bundle; a mismatch warns on unpickle and can change results.
+- Scheduled scanning and retraining run on exactly one replica.
+- `CORS_ORIGINS` lists only the intended production origins.
 - TLS, API routing, health checks, logs, and alerts work from the deployed endpoint.
