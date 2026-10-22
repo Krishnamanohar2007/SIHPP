@@ -5,7 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --timeout 120 --retries 10 -r requirements.txt
 COPY docker/backend-entrypoint.sh /usr/local/bin/backend-entrypoint
 RUN chmod +x /usr/local/bin/backend-entrypoint
 COPY backend/app ./app
