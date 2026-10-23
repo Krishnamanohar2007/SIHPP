@@ -56,13 +56,30 @@ for router in ROUTERS:
 scheduler = BackgroundScheduler(timezone="UTC")
 
 
+BOOTSTRAP_EMPLOYEE_ID = "BOOTSTRAP-ADMIN"
+
+
 def bootstrap_admin() -> None:
-    """Create the configured bootstrap administrator when it does not exist."""
+    """Create the configured bootstrap administrator when it does not exist.
+
+    Both the email and the employee id are unique. A database seeded under a
+    previous bootstrap email already holds the fixed employee id, so checking the
+    email alone would attempt an insert that violates the employee id constraint
+    and take startup down. Either match means the account is already present.
+    """
     if not (settings.bootstrap_admin_email and settings.bootstrap_admin_password):
         return
     email = settings.bootstrap_admin_email.lower()
     with SessionLocal() as db:
-        if db.scalar(select(User).where(User.email == email)):
+        existing = db.scalar(
+            select(User).where((User.email == email) | (User.employee_id == BOOTSTRAP_EMPLOYEE_ID))
+        )
+        if existing is not None:
+            if existing.email != email:
+                logger.warning(
+                    "bootstrap admin already exists as %s; the configured email %s was not applied",
+                    existing.email, email,
+                )
             return
         role = db.scalar(select(Role).where(Role.code == "ADMIN"))
         if role is None:
@@ -70,7 +87,7 @@ def bootstrap_admin() -> None:
             return
         db.add(User(
             official_name="Bootstrap Administrator", organization="Bhoomi Setu",
-            designation="Administrator", email=email, employee_id="BOOTSTRAP-ADMIN",
+            designation="Administrator", email=email, employee_id=BOOTSTRAP_EMPLOYEE_ID,
             password_hash=hash_password(settings.bootstrap_admin_password), role=role,
         ))
         db.commit()

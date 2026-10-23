@@ -375,3 +375,22 @@ def test_identity_endpoint_reports_the_current_role(client):
     body = client.get("/auth/me").json()
     assert body["role"] == "ADMIN"
     assert body["id"]
+
+
+def test_bootstrap_admin_is_idempotent_after_the_email_changes(client, monkeypatch):
+    """A seeded database must not crash startup when the configured email changes.
+
+    Email and employee id are both unique. Checking only the email would attempt
+    an insert that violates the employee id constraint.
+    """
+    from app import main
+    from app.database import SessionLocal
+    from app.models import User
+
+    monkeypatch.setattr(main.settings, "bootstrap_admin_email", "a-different-admin@example.gov.in")
+    monkeypatch.setattr(main.settings, "bootstrap_admin_password", "Bootstrap-Password-2026")
+
+    before = {user.email for user in SessionLocal().scalars(select(User)).all()}
+    main.bootstrap_admin()  # must not raise
+    after = {user.email for user in SessionLocal().scalars(select(User)).all()}
+    assert after == before, "no account should be created when the employee id is taken"
